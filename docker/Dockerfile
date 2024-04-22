@@ -1,4 +1,6 @@
-FROM ethereum/client-go:v1.12.0
+## Update to stable go version to ensure solidity compiled with PUSH0 opcode
+## is forward compatible with shanghai EVM version
+FROM ethereum/client-go:release-1.13
 
 RUN apk update
 RUN apk add --no-cache nginx

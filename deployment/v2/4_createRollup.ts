@@ -74,7 +74,7 @@ async function main() {
 
     const dataAvailabilityProtocol = createRollupParameters.dataAvailabilityProtocol || "PolygonDataCommittee";
 
-    const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
+    const supporteDataAvailabilityProtocols = ["PolygonDataCommittee", "EigenDA"];
 
     if (
         consensusContract.includes("PolygonValidium") &&
@@ -294,8 +294,46 @@ async function main() {
         }
 
         outputJson.polygonDataCommitteeAddress = polygonDataCommittee?.target;
-    }
 
+        console.log("#######################\n");
+        console.log("Data Committee deployed to:", polygonDataCommittee?.target);
+        console.log("#######################\n");
+
+    } else if (consensusContract.includes("PolygonValidium") && dataAvailabilityProtocol === "EigenDA") {
+        // deploy EigenDA verification contract
+        const EigenDAContract = (await ethers.getContractFactory("EigenDA", deployer)) as any;
+        let eigenDA;
+
+        for (let i = 0; i < attemptsDeployProxy; i++) {
+            try {
+                eigenDA = await upgrades.deployProxy(EigenDAContract, [], {unsafeAllow: ["constructor"]});
+                break;
+            } catch (error: any) {
+                console.log(`attempt ${i}`);
+                console.log("upgrades.deployProxy of eigenDA ", error.message);
+            }
+            // reach limits of attempts
+            if (i + 1 === attemptsDeployProxy) {
+                throw new Error("eigenDA contract has not been deployed");
+            }
+        }
+        await eigenDA?.waitForDeployment();
+
+        // Load validium contract
+        const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
+        // add EigenDA to the consensus contract
+        if ((await PolygonValidiumContract.admin()) == deployer.address) {
+            await (await PolygonValidiumContract.setDataAvailabilityProtocol(eigenDA?.target as any)).wait();
+        } else {
+            await (await eigenDA?.transferOwnership(adminZkEVM)).wait();
+        }
+
+        outputJson.eigenDAAddress = eigenDA?.target;
+
+        console.log("#######################\n");
+        console.log("EigenDA deployed to:", eigenDA?.target);
+        console.log("#######################\n");
+    }
     // Assert admin address
     expect(await upgrades.erc1967.getAdminAddress(newZKEVMAddress)).to.be.equal(rollupManagerContract.target);
     expect(await upgrades.erc1967.getImplementationAddress(newZKEVMAddress)).to.be.equal(
