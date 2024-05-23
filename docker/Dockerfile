@@ -1,4 +1,6 @@
-FROM ethereum/client-go:v1.12.0
+## Update to stable go version to ensure solidity compiled with PUSH0 opcode
+## is forward compatible with shanghai EVM version
+FROM ethereum/client-go:release-1.13
 
 RUN apk update
 RUN apk add --no-cache nginx
@@ -16,4 +18,4 @@ COPY docker/deploymentOutput /config/
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
-CMD ["--rpc.allow-unprotected-txs", "--http", "--http.addr", "0.0.0.0", "--http.corsdomain", "*", "--http.vhosts", "*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--dev.period", "1", "--datadir", "/geth_data"]
+CMD ["--rpc.allow-unprotected-txs", "--http", "--http.addr", "0.0.0.0", "--http.corsdomain", "*", "--http.vhosts", "*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--dev.period", "1", "--datadir", "/geth_data", "--gcmode", "archive"]
